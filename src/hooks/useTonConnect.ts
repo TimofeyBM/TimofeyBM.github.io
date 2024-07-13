@@ -22,3 +22,4 @@ export function useTonConnect(): { sender: Sender; connected: boolean } {
     connected: tonConnectUI.connected,
   };
 }
+

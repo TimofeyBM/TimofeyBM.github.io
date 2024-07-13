@@ -20,10 +20,13 @@
   margin: 0 auto;
   text-align: center;
 }
-
+.go3974562317.go4218612181{
+  color: black;
+  background-color: green;
+}
 .Button {
   background-color: var(--tg-theme-button-color);
-  color: var(--tg-theme-button-text-color);
+  color: yellow;
   display: inline-block;
   padding: 10px 20px;
   border-radius: 10px;

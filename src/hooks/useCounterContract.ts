@@ -1,21 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Counter from '../contracts/counter';
 import { useTonClient } from './useTonClient';
 import { useAsyncInitialize } from './useAsyncInitialize';
 import { useTonConnect } from './useTonConnect';
 import { Address, OpenedContract } from '@ton/core';
+import { useTonAddress } from '@tonconnect/ui-react';
 
 export function useCounterContract() {
+  const rawAddress = useTonAddress();
   const client = useTonClient();
-  const [val, setVal] = useState<null | string>();
+  const [val, setVal] = useState<null | string>(null);
   const { sender } = useTonConnect();
+  const prevValRef = useRef<string | null>(null);
 
   const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time));
 
   const counterContract = useAsyncInitialize(async () => {
     if (!client) return;
     const contract = new Counter(
-      Address.parse('EQDVkaVi_NPdH-sIbj4kFR7TRyhBjF-KPbmBMj_rJ6oF-zx7') // replace with your address from tutorial 2 step 8
+      Address.parse('EQCZZf-tYwUOzP_F7WD_j6bs8-jfqUzJZtIyLOFIozh5iLOR') // replace with your address from tutorial 2 step 8
     );
     return client.open(contract) as OpenedContract<Counter>;
   }, [client]);
@@ -23,20 +26,25 @@ export function useCounterContract() {
   useEffect(() => {
     async function getValue() {
       if (!counterContract) return;
-      setVal(null);
-      const val = await counterContract.getCounter();
-      setVal(val.toString());
+      const val = await counterContract.getAddr(rawAddress);
+
+      // Only update state if the value has changed
+      if (prevValRef.current !== val.toString()) {
+        prevValRef.current = val.toString();
+        setVal(val.toString());
+      }
+
       await sleep(5000); // sleep 5 seconds and poll value again
       getValue();
     }
     getValue();
-  }, [counterContract]);
+  }, [counterContract, rawAddress]);
 
   return {
-    value: val,
+    value: (Number(val) / 10 ** 9).toString(),
     address: counterContract?.address.toString(),
-    sendIncrement: () => {
-      return counterContract?.sendIncrement(sender);
+    sendMoneyInContract: (amount: any) => {
+      return counterContract?.sendMoneyInContract(sender, rawAddress, amount.toString());
     },
   };
 }
