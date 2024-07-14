@@ -11,7 +11,7 @@ const port = 3001;
 // Настройки подключения к PostgreSQL
 const pool = new Pool({
   user: 'postgres',
-  host: '192.168.3.22',  // Измените на IP-адрес вашего PostgreSQL сервера
+  host: 'localhost',  // Измените на IP-адрес вашего PostgreSQL сервера
   database: 'mydatabase',
   password: 'mysecretpassword',
   port: 5432,
