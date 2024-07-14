@@ -11,7 +11,7 @@ const port = 3001;
 // Настройки подключения к PostgreSQL
 const pool = new Pool({
   user: 'postgres',
-  host: 'localhost',
+  host: '192.168.3.22',  // Измените на IP-адрес вашего PostgreSQL сервера
   database: 'mydatabase',
   password: 'mysecretpassword',
   port: 5432,
@@ -56,24 +56,25 @@ app.post('/decrement', async (req, res) => {
   }
 });
 
+// Маршрут для создания аккаунта
 app.post('/create-account', async (req, res) => {
-    const { account } = req.body;
-    try {
-      const result = await pool.query('SELECT balance FROM accounts WHERE account = $1', [account]);
-      if (result.rows.length > 0) {
-        // Аккаунт существует, возвращаем текущий баланс
-        res.json({ success: true, balance: result.rows[0].balance });
-      } else {
-        // Аккаунт не существует, создаем новый и устанавливаем баланс на 0
-        await pool.query('INSERT INTO accounts (account, balance) VALUES ($1, 0)', [account]);
-        res.json({ success: true, balance: 0 });
-      }
-    } catch (err) {
-      console.error('Error creating account:', err);
-      res.status(500).json({ error: 'Something went wrong' });
+  const { account } = req.body;
+  try {
+    const result = await pool.query('SELECT balance FROM accounts WHERE account = $1', [account]);
+    if (result.rows.length > 0) {
+      // Аккаунт существует, возвращаем текущий баланс
+      res.json({ success: true, balance: result.rows[0].balance });
+    } else {
+      // Аккаунт не существует, создаем новый и устанавливаем баланс на 0
+      await pool.query('INSERT INTO accounts (account, balance) VALUES ($1, 0)', [account]);
+      res.json({ success: true, balance: 0 });
     }
-  });
-  
+  } catch (err) {
+    console.error('Error creating account:', err);
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });

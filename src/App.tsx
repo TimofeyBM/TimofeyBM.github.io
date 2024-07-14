@@ -56,7 +56,7 @@ function App() {
 
   const fetchBalanceFromDB = async (account: string): Promise<number | null> => {
     try {
-      const response = await axios.get('http://localhost:3001/balance', { params: { account } });
+      const response = await axios.get('http://89.111.172.230:3001/balance', { params: { account } });
       console.log("CURRENT BALANCE", response.data.balance);
       return response.data.balance;
     } catch (error) {
@@ -66,7 +66,7 @@ function App() {
   };
 
   const handleCheckOrCreateAccount = () => {
-    axios.post('http://localhost:3001/create-account', { account: rawAddress })
+    axios.post('http://89.111.172.230:3001/create-account', { account: rawAddress })
       .then(response => {
         setCurrentAccount(rawAddress);
         setBalance(response.data.balance / 1_000_000_000);
@@ -78,10 +78,9 @@ function App() {
   const handleSendMoneyDB = (dbBalance: number, newBalance: number) => {
     if (rawAddress) {
       const amountToSend = newBalance;
-      axios.post('http://localhost:3001/increment', { account: rawAddress, amount: amountToSend })
+      axios.post('http://89.111.172.230:3001/increment', { account: rawAddress, amount: amountToSend })
         .then(() => {
           setBalance((dbBalance + newBalance) / 1_000_000_000);
-          
           localStorage.setItem('amount', '0');
         })
         .catch(error => console.error('Error incrementing balance:', error));
@@ -94,7 +93,7 @@ function App() {
     if (rawAddress) {
       console.log("SEND HANDLE ", newBalance);
       const amountToSend = newBalance;
-      axios.post('http://localhost:3001/decrement', { account: rawAddress, amount: amountToSend })
+      axios.post('http://89.111.172.230:3001/decrement', { account: rawAddress, amount: amountToSend })
         .then(() => {
           setBalance((dbBalance - newBalance) / 1_000_000_000);
           localStorage.setItem('amount', '0');
@@ -121,22 +120,12 @@ function App() {
     localStorage.setItem('amount', negativeAmount);
   };
 
-  // const handleSaveBalance = async () => {
-  //   if (rawAddress) {
-  //     const currentBalance = await fetchBalanceFromDB(rawAddress);
-  //     if (currentBalance !== null) {
-  //       localStorage.setItem('savedBalance', currentBalance.toString());
-  //       console.log(`Saved balance: ${currentBalance}`);
-  //     }
-  //   }
-  // };
-
   const handleDecreaseBalance = async () => {
     if (rawAddress) {
       let savedBalance = localStorage.getItem('savedBalance');
       if (savedBalance) {
         let newBalance = Number(savedBalance) - 1000000;
-        axios.post('http://localhost:3001/decrement', { account: rawAddress, amount: (parseFloat(savedBalance) - newBalance) })
+        axios.post('http://89.111.172.230:3001/decrement', { account: rawAddress, amount: (parseFloat(savedBalance) - newBalance) })
           .then(() => {
             setBalance(newBalance / 1_000_000_000);
             setBalanceChanges(prevChanges => [...prevChanges, `Decremented by ${(parseFloat(savedBalance) - newBalance) / 1_000_000_000} TONs`]); // Добавляем запись об изменении баланса
