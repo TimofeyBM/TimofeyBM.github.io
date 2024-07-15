@@ -1,4 +1,3 @@
-import './App.css';
 import { useState, useEffect } from 'react';
 import { TonConnectButton } from '@tonconnect/ui-react';
 import { useTonConnect } from './hooks/useTonConnect';
@@ -19,7 +18,7 @@ function App() {
   const rawAddress = useTonAddress();
   const [balance, setBalance] = useState<number | null>(null);
   const [currentAccount, setCurrentAccount] = useState<string | null>(null);
-  const [balanceChanges, setBalanceChanges] = useState<string[]>([]); // Новое состояние для отслеживания изменений баланса
+  const [balanceChanges, setBalanceChanges] = useState<string[]>([]);
 
   useEffect(() => {
     if (rawAddress) {
@@ -54,9 +53,28 @@ function App() {
     return () => clearInterval(interval);
   }, [value]);
 
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:3001');
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+
+      if (message.type === 'historyUpdate') {
+        setBalanceChanges((prevChanges) => {
+          const newChanges = [...prevChanges, `${message.account.slice(0, 10) + "..."} \n  +${message.amountbet / 1_000_000_000} `];
+          return newChanges.slice(-10); // Оставляем только последние 10 изменений
+        });
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
   const fetchBalanceFromDB = async (account: string): Promise<number | null> => {
     try {
-      const response = await axios.get('https://subgameserf.ru/balance', { params: { account } });
+      const response = await axios.get('http://localhost:3001/balance', { params: { account } });
       console.log("CURRENT BALANCE", response.data.balance);
       return response.data.balance;
     } catch (error) {
@@ -66,7 +84,7 @@ function App() {
   };
 
   const handleCheckOrCreateAccount = () => {
-    axios.post('https://subgameserf.ru/create-account', { account: rawAddress })
+    axios.post('http://localhost:3001/create-account', { account: rawAddress })
       .then(response => {
         setCurrentAccount(rawAddress);
         setBalance(response.data.balance / 1_000_000_000);
@@ -78,7 +96,7 @@ function App() {
   const handleSendMoneyDB = (dbBalance: number, newBalance: number) => {
     if (rawAddress) {
       const amountToSend = newBalance;
-      axios.post('https://subgameserf.ru/increment', { account: rawAddress, amount: amountToSend })
+      axios.post('http://localhost:3001/increment', { account: rawAddress, amount: amountToSend })
         .then(() => {
           setBalance((dbBalance + newBalance) / 1_000_000_000);
           localStorage.setItem('amount', '0');
@@ -93,7 +111,7 @@ function App() {
     if (rawAddress) {
       console.log("SEND HANDLE ", newBalance);
       const amountToSend = newBalance;
-      axios.post('https://subgameserf.ru/decrement', { account: rawAddress, amount: amountToSend })
+      axios.post('http://localhost:3001/decrement', { account: rawAddress, amount: amountToSend })
         .then(() => {
           setBalance((dbBalance - newBalance) / 1_000_000_000);
           localStorage.setItem('amount', '0');
@@ -122,24 +140,28 @@ function App() {
 
   const handleDecreaseBalance = async () => {
     if (rawAddress) {
-      let savedBalance = localStorage.getItem('savedBalance');
-      if (savedBalance) {
-        let newBalance = Number(savedBalance) - 1000000;
-        axios.post('https://subgameserf.ru/decrement', { account: rawAddress, amount: (parseFloat(savedBalance) - newBalance) })
-          .then(() => {
-            setBalance(newBalance / 1_000_000_000);
-            setBalanceChanges(prevChanges => [...prevChanges, `Decremented by ${(parseFloat(savedBalance) - newBalance) / 1_000_000_000} TONs`]); // Добавляем запись об изменении баланса
-            localStorage.setItem('savedBalance', newBalance.toString());
-            console.log(`Decreased balance to: ${newBalance}`);
-          })
-          .catch(error => console.error('Error decrementing balance:', error));
+      try {
+        // Сначала выполняем POST-запрос для обновления ставки
+      await axios.post('http://localhost:3001/set-balance-bet', { account: rawAddress, amountbet: 1000000, lastbet: 1 });
+
+        // if (postResponse.status === 200) {
+        //   // Если POST-запрос успешен, выполняем GET-запрос для получения обновленного баланса
+        //   const getResponse = await axios.get('http://localhost:3001/balance-bet', { params: { account: rawAddress } });
+
+        //   if (getResponse.status === 200) {
+        //     const newBalance = getResponse.data.amountbet;
+        //     setBalanceChanges(prevChanges => [...prevChanges, `Bet placed: ${newBalance / 1_000_000_000} TONs`]);
+        //   }
+        // }
+      } catch (error) {
+        console.error('Error placing bet:', error);
       }
     }
   };
 
   return (
     <div className='App'>
-      <div className='Container'> 
+      <div className='Container'>
         <TonConnectButton />
         <div>
           <b>Raw Address</b>
@@ -165,13 +187,13 @@ function App() {
           Deposit
         </a>
         <a className={`Button ${connected ? 'Active' : 'Disabled'}`} onClick={handleSendOutMoney}>
-          Withdrawl
+          Withdraw
         </a>
-        
+
         <a className={`Button ${connected ? 'Active' : 'Disabled'}`} onClick={handleDecreaseBalance}>
           BET
         </a>
-        
+
         <div className='Card'>
           <b>Balance Changes</b>
           <ul>
