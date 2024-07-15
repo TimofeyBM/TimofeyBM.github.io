@@ -40,6 +40,29 @@ const broadcastToClients = (message) => {
   });
 };
 
+let timerInterval;
+let timerRunning = false;
+
+const startTimer = () => {
+  if (timerRunning) {
+    return;
+  }
+  timerRunning = true;
+  let remainingTime = 10; // 60 секунд
+  broadcastToClients({ type: 'timerUpdate', time: remainingTime });
+
+  timerInterval = setInterval(() => {
+    remainingTime -= 1;
+    broadcastToClients({ type: 'timerUpdate', time: remainingTime });
+
+    if (remainingTime <= 0) {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      broadcastToClients({ type: 'resetHistory' });
+    }
+  }, 1000);
+};
+
 // Маршрут для получения текущего значения баланса из таблицы accounts
 app.get('/balance', async (req, res) => {
   const { account } = req.query;
@@ -58,7 +81,7 @@ app.post('/increment', async (req, res) => {
   try {
     await pool.query('UPDATE accounts SET balance = balance + $1 WHERE account = $2', [amount, account]);
     res.json({ success: true });
-    
+    broadcastToClients({ type: 'balanceUpdate', account, amount });
   } catch (err) {
     console.error('Error incrementing balance:', err);
     res.status(500).json({ error: 'Something went wrong' });
@@ -71,7 +94,7 @@ app.post('/decrement', async (req, res) => {
   try {
     await pool.query('UPDATE accounts SET balance = balance - $1 WHERE account = $2', [amount, account]);
     res.json({ success: true });
-    
+    broadcastToClients({ type: 'balanceUpdate', account, amount: -amount });
   } catch (err) {
     console.error('Error decrementing balance:', err);
     res.status(500).json({ error: 'Something went wrong' });
@@ -106,14 +129,16 @@ app.post('/set-balance-bet', async (req, res) => {
       // Аккаунт существует, обновляем ставку
       await pool.query('UPDATE accountsbet SET amountbet = amountbet + $1, lastbet = $2 WHERE account = $3', [amountbet, lastbet, account]);
       res.json({ success: true });
-     
+      broadcastToClients({ type: 'betUpdate', account, amountbet, lastbet });
       broadcastToClients({ type: 'historyUpdate', account, amountbet });
+      startTimer();
     } else {
       // Аккаунт не существует, создаем новый и устанавливаем ставки
       await pool.query('INSERT INTO accountsbet (account, amountbet, lastbet) VALUES ($1, $2, $3)', [account, amountbet, lastbet]);
       res.json({ success: true });
-    ;
+      broadcastToClients({ type: 'betUpdate', account, amountbet, lastbet });
       broadcastToClients({ type: 'historyUpdate', account, amountbet });
+      startTimer();
     }
   } catch (err) {
     console.error('Error setting balance bet:', err);
@@ -133,5 +158,14 @@ app.get('/balance-bet', async (req, res) => {
   } catch (err) {
     console.error('Error fetching balance from accountsbet:', err);
     res.status(500).json({ error: 'Something went wrong' });
+  }
+});
+
+app.post('/start-timer', (req, res) => {
+  if (!timerRunning) {
+    startTimer();
+    res.json({ success: true });
+  } else {
+    res.json({ success: false, message: 'Timer is already running' });
   }
 });

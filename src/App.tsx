@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TonConnectButton } from '@tonconnect/ui-react';
 import { useTonConnect } from './hooks/useTonConnect';
 import { useCounterContract } from './hooks/useCounterContract';
@@ -19,6 +19,7 @@ function App() {
   const [balance, setBalance] = useState<number | null>(null);
   const [currentAccount, setCurrentAccount] = useState<string | null>(null);
   const [balanceChanges, setBalanceChanges] = useState<string[]>([]);
+  const [timer, setTimer] = useState<number | null>(null);
 
   useEffect(() => {
     if (rawAddress) {
@@ -61,9 +62,13 @@ function App() {
 
       if (message.type === 'historyUpdate') {
         setBalanceChanges((prevChanges) => {
-          const newChanges = [...prevChanges, `${message.account.slice(0, 10) + "..."} \n  +${message.amountbet / 1_000_000_000} `];
+          const newChanges = [...prevChanges, `${message.account}, Bet: ${message.amountbet / 1_000_000_000} TONs`];
           return newChanges.slice(-10); // Оставляем только последние 10 изменений
         });
+      } else if (message.type === 'timerUpdate') {
+        setTimer(message.time);
+      } else if (message.type === 'resetHistory') {
+        setBalanceChanges([]);
       }
     };
 
@@ -71,6 +76,22 @@ function App() {
       ws.close();
     };
   }, []);
+
+  useEffect(() => {
+    if (timer !== null) {
+      const countdown = setInterval(() => {
+        setTimer((prevTime) => {
+          if (prevTime !== null && prevTime > 0) {
+            return prevTime - 1;
+          } else {
+            clearInterval(countdown);
+            return null;
+          }
+        });
+      }, 1000);
+      return () => clearInterval(countdown);
+    }
+  }, [timer]);
 
   const fetchBalanceFromDB = async (account: string): Promise<number | null> => {
     try {
@@ -142,21 +163,27 @@ function App() {
     if (rawAddress) {
       try {
         // Сначала выполняем POST-запрос для обновления ставки
-      await axios.post('http://localhost:3001/set-balance-bet', { account: rawAddress, amountbet: 1000000, lastbet: 1 });
+        const postResponse = await axios.post('http://localhost:3001/set-balance-bet', { account: rawAddress, amountbet: 1000000, lastbet: 1 });
 
-        // if (postResponse.status === 200) {
-        //   // Если POST-запрос успешен, выполняем GET-запрос для получения обновленного баланса
-        //   const getResponse = await axios.get('http://localhost:3001/balance-bet', { params: { account: rawAddress } });
+        if (postResponse.status === 200) {
+          // Если POST-запрос успешен, выполняем GET-запрос для получения обновленного баланса
+          const getResponse = await axios.get('http://localhost:3001/balance-bet', { params: { account: rawAddress } });
 
-        //   if (getResponse.status === 200) {
-        //     const newBalance = getResponse.data.amountbet;
-        //     setBalanceChanges(prevChanges => [...prevChanges, `Bet placed: ${newBalance / 1_000_000_000} TONs`]);
-        //   }
-        // }
+          if (getResponse.status === 200) {
+            const newBalance = getResponse.data.amountbet;
+            setBalanceChanges(prevChanges => [...prevChanges, `Bet placed: ${newBalance / 1_000_000_000} TONs`]);
+            startTimer(); // Запускаем таймер при первой ставке
+          }
+        }
       } catch (error) {
         console.error('Error placing bet:', error);
       }
     }
+  };
+
+  const startTimer = () => {
+    axios.post('http://localhost:3001/start-timer')
+      .catch(error => console.error('Error starting timer:', error));
   };
 
   return (
@@ -201,6 +228,11 @@ function App() {
               <li key={index}>{change}</li>
             ))}
           </ul>
+        </div>
+
+        <div className='Card'>
+          <b>Timer</b>
+          <div>{timer !== null ? `${Math.floor(timer / 60)}:${timer % 60}` : 'No timer'}</div>
         </div>
       </div>
     </div>
