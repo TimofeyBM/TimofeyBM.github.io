@@ -18,11 +18,12 @@ export function useCounterContract() {
   const counterContract = useAsyncInitialize(async () => {
     if (!client) return;
     const contract = new Counter(
-      Address.parse('EQCZZf-tYwUOzP_F7WD_j6bs8-jfqUzJZtIyLOFIozh5iLOR') // replace with your address from tutorial 2 step 8
+      Address.parse('EQAunf-Pn16zTTLildDPDoZpxilpTLYPqatVrTWM8a6K7IE8') // replace with your address from tutorial 2 step 8
     );
     return client.open(contract) as OpenedContract<Counter>;
   }, [client]);
-
+ 
+  
   useEffect(() => {
     async function getValue() {
       if (!counterContract) return;
@@ -42,9 +43,13 @@ export function useCounterContract() {
 
   return {
     value: (Number(val) / 10 ** 9).toString(),
-    address: counterContract?.address.toString(),
     sendMoneyInContract: (amount: any) => {
+      
       return counterContract?.sendMoneyInContract(sender, rawAddress, amount.toString());
     },
+    addr: counterContract?.address.toString()
   };
 }
+
+
+
